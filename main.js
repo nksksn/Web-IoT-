@@ -61,7 +61,7 @@ async function main() {
   // webSocketリレーの初期化
   var relay = RelayServer("chirimentest", "chirimenSocket", nodeWebSocketLib, "https://chirimen.org");
   channel = await relay.subscribe("ninja-iot");
-  channel.onmessage = getMessage();
+  channel.onmessage = getMessage;
   console.log("web socketリレーサービスに接続しました");
 
   // センサーの初期化
@@ -106,6 +106,9 @@ async function main() {
         `count_safe: ${count_safe}`,
         //`Rx: ${r[0].toFixed(1)}, Ry: ${r[1].toFixed(1)}, Rz: ${r[2].toFixed(1)}`,
         `Acceleration: ${acc}`,
+        `Oni: ${oni_lat}, ${oni_lng}`,
+        `Sinobi: ${sinobi_lat}, ${sinobi_lng}`, 
+        `Distance: ${distance}`
       ].join("\n")
     );
 
@@ -210,8 +213,7 @@ async function nPixTest1(npix) {
 }
 
 function getMessage(msg) {
-  console.log(msg);
-  /*
+  //console.log(msg.data);
   if(msg.data.role){
     if (msg.data.role == "oni") {
       if (msg.data.lat){
@@ -221,7 +223,7 @@ function getMessage(msg) {
         oni_lng = msg.data.lon;
       }
     }
-  }*/
+  }
 }
 
 

@@ -14,6 +14,11 @@ import { count } from "console";
 
 var channel;
 const sleep = msec => new Promise(resolve => setTimeout(resolve, msec)); // sleep 関数を定義
+var oni_lat = 0;
+var oni_lng = 0;
+var sinobi_lat = 0;
+var sinobi_lng = 0;
+var distance = 0;
 
 async function main() {
   //ブザーの設定
@@ -47,6 +52,7 @@ async function main() {
   // webSocketリレーの初期化
   var relay = RelayServer("chirimentest", "chirimenSocket", nodeWebSocketLib, "https://chirimen.org");
   channel = await relay.subscribe("ninja-iot");
+  channel.onmessage = getMessage;
   console.log("web socketリレーサービスに接続しました");
 
   // センサーの初期化
@@ -91,6 +97,9 @@ async function main() {
         `count_safe: ${count_safe}`,
         //`Rx: ${r[0].toFixed(1)}, Ry: ${r[1].toFixed(1)}, Rz: ${r[2].toFixed(1)}`,
         `Acceleration: ${acc}`,
+        `Oni: ${oni_lat}, ${oni_lng}`,
+        `Sinobi: ${sinobi_lat}, ${sinobi_lng}`, 
+        `Distance: ${distance}`
       ].join("\n")
     );
 
@@ -100,6 +109,8 @@ async function main() {
         data.role = "sinobi";
         channel.send(data); // Send
         console.log(JSON.stringify(data))
+        sinobi_lat = data.lat;
+        sinobi_lng = data.lon;
       }
     });
 
@@ -137,6 +148,10 @@ async function main() {
       port1.write(0)//
     }
 
+    //距離計算
+    distance = getDistance(oni_lat, oni_lng, sinobi_lat, sinobi_lng);
+    
+    // クールタイムのカウント
     if(count_safe < 0)
       count_safe = count_safe + 1;
     if(count_waza < 0)
@@ -145,6 +160,27 @@ async function main() {
     await sleep(500);
   }
 
+}
+
+function getDistance(latitude0,longitude0, latitude1,longitude1){
+	var difLatM = (latitude1-latitude0) * 40000000 / 360;
+	var difLngM = Math.cos(latitude0) * (longitude1-longitude0)* 40000000 / 360;
+	var distance = Math.sqrt(difLatM * difLatM + difLngM * difLngM);
+	return distance; // in meter
+}
+
+function getMessage(msg) {
+  //console.log(msg.data);
+  if(msg.data.role){
+    if (msg.data.role == "oni") {
+      if (msg.data.lat){
+        oni_lat = msg.data.lat;
+      }
+      if (msg.data.lon){
+        oni_lng = msg.data.lon;
+      }
+    }
+  }
 }
 
 main();
