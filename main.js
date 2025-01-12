@@ -58,6 +58,7 @@ async function main() {
 
     );
     
+    //加速度センサー
     const acc = Math.sqrt(g[0]**2+g[1]**2+g[2]**2).toFixed(1);
     console.log(acc)
     if(acc > 40){
