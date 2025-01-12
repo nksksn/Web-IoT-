@@ -1,6 +1,6 @@
 import { requestGPIOAccess } from "./node_modules/node-web-gpio/dist/index.js"; // WebGPIO を使えるようにするためのライブラリをインポート
 import { requestI2CAccess } from "./node_modules/node-web-i2c/index.js";
-import NPIX from "@chirimen/neopixel-i2c";
+
 import MPU6050 from "@chirimen/mpu6050";
 
 import { SerialPort } from 'serialport';
@@ -12,15 +12,8 @@ import nodeWebSocketLib from "websocket"; // https://www.npmjs.com/package/webso
 import { RelayServer } from "./RelayServer.js";
 import { count } from "console";
 
-
 var channel;
 const sleep = msec => new Promise(resolve => setTimeout(resolve, msec)); // sleep 関数を定義
-var oni_lat = 0;
-var oni_lng = 0;
-var sinobi_lat = 0;
-var sinobi_lng = 0;
-var distance = 0;
-
 
 async function main() {
   //ブザーの設定
@@ -29,9 +22,9 @@ async function main() {
   await port1.export("out");
 
   //加速度センサの初期設定
-  const i2CAccess = await requestI2CAccess();
-  const port_i2c = i2CAccess.ports.get(1);
-  var mpu6050 = new MPU6050(port_i2c, 0x68);
+  var i2CAccess = await requestI2CAccess();
+  var port2 = i2CAccess.ports.get(1);
+  var mpu6050 = new MPU6050(port2, 0x68);
   await mpu6050.init();
 
   var i = 0;
@@ -42,13 +35,6 @@ async function main() {
   var temp_rx = 0;
   var temp_ry = 0;
   var temp_rz = 0;
-
-  //LEDの初期設定
-  const neoPixels = 16; // LED個数
-  const npix = new NPIX(port_i2c, 0x41);
-  await npix.init(neoPixels);
-  await nPixTest1(npix);
-  await npix.setGlobal(0, 0, 0);
 
   //GPSの初期設定
   const port = new SerialPort({ path: '/dev/ttyS0', baudRate: 9600 })
@@ -61,7 +47,6 @@ async function main() {
   // webSocketリレーの初期化
   var relay = RelayServer("chirimentest", "chirimenSocket", nodeWebSocketLib, "https://chirimen.org");
   channel = await relay.subscribe("ninja-iot");
-  channel.onmessage = getMessage();
   console.log("web socketリレーサービスに接続しました");
 
   // センサーの初期化
@@ -114,15 +99,13 @@ async function main() {
         //console.log(data);
         data.role = "sinobi";
         channel.send(data); // Send
-        console.log(JSON.stringify(data));
-        sinobi_lat = data.lat;
-        sinobi_lng = data.lon;
+        console.log(JSON.stringify(data))
       }
     });
 
     // サーバにメッセージを送信する
     if (g[0] > 0.8 && acc < 100) {
-      if (count_safe >= 0)
+      if(count_safe >= 0)
         count_safe = count_safe + 1;
       // 保持時間＝count_safe*loop await sleep 時間
       if (count_safe > 6) {
@@ -131,7 +114,7 @@ async function main() {
         count_safe = -120; //40秒のクールタイム
       }
     } else if (g[0] > -0.20 && g[0] < 0.20 && acc < 100) {
-      if (count_waza >= 0)
+      if(count_waza >= 0)
         count_waza = count_waza + 1;
 
       // 保持時間＝count_waza*loop await sleep 時間
@@ -141,95 +124,27 @@ async function main() {
         count_waza = -160;
       }
     } else {
-      if (count_safe > 0)
+      if(count_safe > 0)
         count_safe = 0;
-      if (count_waza > 0)
+      if(count_waza > 0)
         count_waza = 0;
     }
 
     //ブザー
     if (acc > 100) {
       port1.write(1)//ブザーが鳴る
-    } else {
+    }else{
       port1.write(0)//
     }
 
-    //GPS
-    distance = getDistance(oni_lat, oni_lng, sinobi_lat, sinobi_lng);
-    if(distance == 0){
-      await npix.setGlobal(0, 0, 0);  // off
-    }else if(distance <= 5){
-      await npix.setGlobal(20, 0, 0);  // 赤
-    }else if(distance <= 10){
-      await npix.setGlobal(15, 0, 5);  // ピンク
-    }else if(distance <= 15){
-      await npix.setGlobal(17, 3, 0);  // オレンジ
-    }else if(distance <= 20){
-      await npix.setGlobal(14, 6, 0);  // 黄色
-    }else if(distance <= 25){
-      await npix.setGlobal(8, 12, 0);  // 黄緑
-    }else if(distance <= 30){
-      await npix.setGlobal(0, 20, 0);  // 緑
-    }else if(distance <= 35){
-      await npix.setGlobal(0, 10, 10);  // 水色
-    }else{
-      await npix.setGlobal(0, 0, 20);  // 青
-    }
-    //クールタイム
-    if (count_safe < 0)
+    if(count_safe < 0)
       count_safe = count_safe + 1;
-    if (count_waza < 0)
+    if(count_waza < 0)
       count_waza = count_waza + 1;
 
     await sleep(500);
   }
 
-}
-
-async function nPixTest1(npix) {
-  // 全LEDを同じ色にするケース
-  await npix.setGlobal(20, 0, 0);  // 赤
-  await sleep(1000);
-  await npix.setGlobal(15, 0, 5);  // ピンク
-  await sleep(1000);
-  await npix.setGlobal(17, 3, 0);  // オレンジ
-  await sleep(1000);
-  await npix.setGlobal(14, 6, 0);  // 黄色
-  await sleep(1000);
-  await npix.setGlobal(8, 12, 0);  // 黄緑
-  await sleep(1000);
-  await npix.setGlobal(0, 20, 0);  // 緑
-  await sleep(1000);
-  await npix.setGlobal(0, 10, 10);  // 水色
-  await sleep(1000);
-  await npix.setGlobal(0, 0, 20);  // 青
-  await sleep(1000);
-  await npix.setGlobal(6, 0, 14);  // 紫
-  await sleep(1000);
-  await npix.setGlobal(0, 0, 0);  // off
-}
-
-function getMessage(msg) {
-  console.log(msg);
-  /*
-  if(msg.data.role){
-    if (msg.data.role == "oni") {
-      if (msg.data.lat){
-        oni_lat = msg.data.lat;
-      }
-      if (msg.data.lon){
-        oni_lng = msg.data.lon;
-      }
-    }
-  }*/
-}
-
-
-function getDistance(latitude0,longitude0, latitude1,longitude1){
-	var difLatM = (latitude1-latitude0) * 40000000 / 360;
-	var difLngM = Math.cos(latitude0) * (longitude1-longitude0)* 40000000 / 360;
-	var distance = Math.sqrt(difLatM * difLatM + difLngM * difLngM);
-	return distance; // in meter
 }
 
 main();
