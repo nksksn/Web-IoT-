@@ -17,12 +17,12 @@ const sleep = msec => new Promise(resolve => setTimeout(resolve, msec)); // slee
 async function main() {
   //ブザーの設定
   const gpioAccess = await requestGPIOAccess(); 
-  const port1 = gpioAccess.ports.get(26);  
+  const port1 = gpioAccess.ports.get(21);  
   await port1.export("out"); 
 
   //加速度センサの初期設定
   var i2CAccess = await requestI2CAccess(); 
-  var port2 = i2CAccess.ports.get(5);
+  var port2 = i2CAccess.ports.get(1);
   var mpu6050 = new MPU6050(port2, 0x68);
   await mpu6050.init();
   
@@ -37,33 +37,40 @@ async function main() {
   var relay = RelayServer("achex", "chirimenSocket",nodeWebSocketLib,"https://chirimen.org");
   channel = await relay.subscribe("chirimenMbitSensors");
 
-  gps.on('data', function (data) {
-    if (data.type == "GGA") { // "RMC"タイプデータを読むと速度(ノット)が得られる
-      const gpsData = {
-        latitude: gps.state.lat,
-        longitude: gps.state.lon
-      };
+  while (true) {
+      const data = await mpu6050.readAll();
+      const temperature = data.temperature.toFixed(2);
+      const g = [data.gx, data.gy, data.gz];
+      
+      console.log(
+        [
+          `Temperature: ${temperature} degree`,
+          `Gx: ${g[0]}, Gy: ${g[1]}, Gz: ${g[2]}`,
+        ].join("\n")
+      );
+     
+     const acc = Math.sqrt(g[0]**2+g[1]**2+g[2]**2).toFixed(1);
+     console.log(`Accelation:${acc}`)//コンソール用
+     
+     gps.on('data', function (data) {
+        if (data.type == "RMC") { // "RMC"タイプデータを読むと速度(ノット)が得られる
+        const gpsData = {
+          latitude: gps.state.lat,
+          longitude: gps.state.lon,
+          course: gps.state.course,
+          Accelation: acc
+        };
       channel.send(JSON.stringify(gpsData)); // Send
+      console.log(JSON.stringify(gpsData))
     }
   });
+     
+     if(acc > 40){
+         port1.write(1)//ブザーが鳴る
+     }
 
-  const data = await mpu6050.readAll();
-  const temperature = data.temperature.toFixed(2);
-    const g = [data.gx, data.gy, data.gz];
-    console.log(
-      [
-        `Temperature: ${temperature} degree`,
-        `Gx: ${g[0]}, Gy: ${g[1]}, Gz: ${g[2]}`,
-      ].join("\n")
-
-    );
-    
-    //加速度センサー
-    const acc = Math.sqrt(g[0]**2+g[1]**2+g[2]**2).toFixed(1);
-    console.log(acc)
-    if(acc > 40){
-      port1.write(1)//ブザーが鳴る
-    }
+     await sleep(500);
+  }
 
 }
   
