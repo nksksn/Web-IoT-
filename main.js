@@ -41,8 +41,8 @@ async function main() {
   });
 
   // webSocketリレーの初期化
-  var relay = RelayServer("achex", "chirimenSocket",nodeWebSocketLib,"https://chirimen.org");
-  channel = await relay.subscribe("chirimenMbitSensors");
+  var relay = RelayServer("chirimentest", "chirimenSocket",nodeWebSocketLib,"https://chirimen.org");
+  channel = await relay.subscribe("ninja-iot");
   console.log("web socketリレーサービスに接続しました");
 
   // センサーの初期化
@@ -94,9 +94,9 @@ async function main() {
         const gpsData = {
           latitude: gps.state.lat,
           longitude: gps.state.lon,
-          course: gps.state.course,
           Accelation: acc
         };
+        data.role = "sinobi";
       channel.send(JSON.stringify(gpsData)); // Send
       console.log(JSON.stringify(gpsData))
       }
